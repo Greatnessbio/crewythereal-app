@@ -1,8 +1,6 @@
 streamlit
 crewai
-crewai-tools
-chromadb
-pydantic
-embedchain
-openai
 langchain
+openai
+python-dotenv
+duckduckgo-search
