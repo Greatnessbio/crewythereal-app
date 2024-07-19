@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from crewai import Agent, Task, Crew, Process
+from crewai import Agent, Task, Crew
 from langchain.tools import DuckDuckGoSearchRun
 from langchain.llms import OpenAI
 
@@ -85,8 +85,7 @@ content_task = create_task(
 crew = Crew(
     agents=[lead_market_analyst, chief_marketing_strategist, creative_content_creator],
     tasks=[research_task, strategy_task, content_task],
-    verbose=2,
-    process=Process.sequential
+    verbose=2
 )
 
 if st.button("Generate Marketing Strategy"):
