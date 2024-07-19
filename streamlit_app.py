@@ -1,25 +1,8 @@
 import streamlit as st
 import os
-import sys
-
-# Monkey-patch to prevent problematic imports
-import builtins
-original_import = builtins.__import__
-
-def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
-    if name in ['crewai.memory', 'embedchain', 'chromadb']:
-        return sys.modules['crewai']
-    return original_import(name, globals, locals, fromlist, level)
-
-builtins.__import__ = patched_import
-
-# Now import CrewAI components
 from crewai import Agent, Task, Crew, Process
+from crewai_tools import SerperDevTool, ScrapeWebsiteTool
 from langchain.tools import DuckDuckGoSearchRun
-from langchain.llms import OpenAI
-
-# Restore original import function
-builtins.__import__ = original_import
 
 # Set page config
 st.set_page_config(page_title="CrewAI Marketing Strategy Generator", page_icon="🚀", layout="wide")
@@ -27,22 +10,26 @@ st.set_page_config(page_title="CrewAI Marketing Strategy Generator", page_icon="
 # Streamlit UI
 st.title("🚀 CrewAI Marketing Strategy Generator")
 
-# Sidebar for API key
+# Sidebar for API keys
 with st.sidebar:
     st.header("API Configuration")
     openai_api_key = st.text_input("OpenAI API Key", type="password")
+    serper_api_key = st.text_input("Serper API Key", type="password")
     
-    if openai_api_key:
+    if openai_api_key and serper_api_key:
         os.environ["OPENAI_API_KEY"] = openai_api_key
+        os.environ["SERPER_API_KEY"] = serper_api_key
     else:
-        st.warning("Please enter your OpenAI API key to proceed.")
+        st.warning("Please enter your API keys to proceed.")
 
 # Main content
 customer_domain = st.text_input("Customer Domain", placeholder="e.g., crewai.com")
 project_description = st.text_area("Project Description", placeholder="Describe your marketing project...")
 
 # Initialize tools
-search_tool = DuckDuckGoSearchRun()
+search_tool = SerperDevTool()
+scrape_tool = ScrapeWebsiteTool()
+duck_search_tool = DuckDuckGoSearchRun()
 
 # Define agents
 def create_agent(role, goal, backstory):
@@ -52,46 +39,53 @@ def create_agent(role, goal, backstory):
         backstory=backstory,
         verbose=True,
         allow_delegation=False,
-        tools=[search_tool]
+        tools=[search_tool, scrape_tool, duck_search_tool]
     )
 
 lead_market_analyst = create_agent(
     "Lead Market Analyst",
-    "Conduct comprehensive analysis of products and competitors, providing in-depth insights to guide marketing strategies.",
-    "You are the Lead Market Analyst at a premier digital marketing firm, specializing in dissecting online business landscapes."
+    "Conduct amazing analysis of the products and competitors, providing in-depth insights to guide marketing strategies.",
+    "As the Lead Market Analyst at a premier digital marketing firm, you specialize in dissecting online business landscapes."
 )
 
 chief_marketing_strategist = create_agent(
     "Chief Marketing Strategist",
-    "Synthesize market insights to formulate innovative and effective marketing strategies.",
+    "Synthesize amazing insights from product analysis to formulate incredible marketing strategies.",
     "You are the Chief Marketing Strategist at a leading digital marketing agency, known for crafting bespoke strategies that drive success."
 )
 
 creative_content_creator = create_agent(
     "Creative Content Creator",
-    "Develop compelling and innovative content for marketing campaigns, with a focus on creating high-impact ad copies.",
-    "As a Creative Content Creator at a top-tier digital marketing agency, you excel in crafting narratives that resonate with diverse audiences."
+    "Develop compelling and innovative content for social media campaigns, with a focus on creating high-impact ad copies.",
+    "As a Creative Content Creator at a top-tier digital marketing agency, you excel in crafting narratives that resonate with audiences."
 )
 
 # Define tasks
 def create_task(description, agent):
     return Task(
-        description=description,
+        description=description.format(
+            customer_domain=customer_domain,
+            project_description=project_description
+        ),
         agent=agent
     )
 
 research_task = create_task(
-    f"Conduct thorough research on {customer_domain} and its competitors. Analyze the market landscape, target audience, and current trends relevant to: {project_description}",
+    "Conduct a thorough research about the customer and competitors in the context of {customer_domain}. "
+    "Make sure you find any interesting and relevant information given the current year is 2024. "
+    "We are working with them on the following project: {project_description}.",
     lead_market_analyst
 )
 
 strategy_task = create_task(
-    f"Develop a comprehensive marketing strategy for {customer_domain} based on the research insights. The strategy should address: {project_description}",
+    "Formulate a comprehensive marketing strategy for the project {project_description} of the customer {customer_domain}. "
+    "Use the insights from the research task and the project understanding task to create a high-quality strategy.",
     chief_marketing_strategist
 )
 
 content_task = create_task(
-    f"Create compelling marketing content and campaign ideas for {customer_domain} that align with the developed strategy. Focus on: {project_description}",
+    "Create compelling marketing content and campaign ideas for {customer_domain} that align with the developed strategy. "
+    "Ensure the ideas are innovative, engaging, and tailored to the target audience. Focus on: {project_description}",
     creative_content_creator
 )
 
@@ -104,8 +98,8 @@ crew = Crew(
 )
 
 if st.button("Generate Marketing Strategy"):
-    if not openai_api_key:
-        st.error("Please enter your OpenAI API key in the sidebar.")
+    if not openai_api_key or not serper_api_key:
+        st.error("Please enter your API keys in the sidebar.")
     elif not customer_domain or not project_description:
         st.error("Please fill in all the required fields.")
     else:
