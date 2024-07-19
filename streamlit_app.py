@@ -1,8 +1,25 @@
 import streamlit as st
 import os
+import sys
+
+# Monkey-patch to prevent problematic imports
+import builtins
+original_import = builtins.__import__
+
+def patched_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if name in ['crewai.memory', 'embedchain', 'chromadb']:
+        return sys.modules['crewai']
+    return original_import(name, globals, locals, fromlist, level)
+
+builtins.__import__ = patched_import
+
+# Now import CrewAI components
 from crewai import Agent, Task, Crew, Process
 from langchain.tools import DuckDuckGoSearchRun
 from langchain.llms import OpenAI
+
+# Restore original import function
+builtins.__import__ = original_import
 
 # Set page config
 st.set_page_config(page_title="CrewAI Marketing Strategy Generator", page_icon="🚀", layout="wide")
