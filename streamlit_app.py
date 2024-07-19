@@ -1,27 +1,16 @@
 import streamlit as st
 import os
-from dotenv import load_dotenv
+from crewai import Agent, Task, Crew, Process
+from langchain.tools import DuckDuckGoSearchRun
+from langchain.llms import OpenAI
 
-# Load environment variables
-load_dotenv()
-
+# Set page config
 st.set_page_config(page_title="CrewAI Marketing Strategy Generator", page_icon="🚀", layout="wide")
 
+# Streamlit UI
 st.title("🚀 CrewAI Marketing Strategy Generator")
 
-# Check for dependencies
-try:
-    from crewai import Agent, Task, Crew
-    from langchain.agents import Tool
-    from langchain.chains import LLMChain
-    from langchain.llms import OpenAI
-    from langchain.prompts import PromptTemplate
-    from duckduckgo_search import DDGS
-except ImportError as e:
-    st.error(f"Failed to import required modules. Error: {e}")
-    st.stop()
-
-# Sidebar for API keys
+# Sidebar for API key
 with st.sidebar:
     st.header("API Configuration")
     openai_api_key = st.text_input("OpenAI API Key", type="password")
@@ -35,19 +24,10 @@ with st.sidebar:
 customer_domain = st.text_input("Customer Domain", placeholder="e.g., crewai.com")
 project_description = st.text_area("Project Description", placeholder="Describe your marketing project...")
 
-# DuckDuckGo search tool
-def web_search(query):
-    with DDGS() as ddgs:
-        results = [r for r in ddgs.text(query, max_results=5)]
-    return results
+# Initialize tools
+search_tool = DuckDuckGoSearchRun()
 
-search_tool = Tool(
-    name="Web Search",
-    func=web_search,
-    description="Useful for searching the web for information."
-)
-
-# Agent configurations
+# Define agents
 def create_agent(role, goal, backstory):
     return Agent(
         role=role,
@@ -60,23 +40,23 @@ def create_agent(role, goal, backstory):
 
 lead_market_analyst = create_agent(
     "Lead Market Analyst",
-    "Conduct amazing analysis of the products and competitors, providing in-depth insights to guide marketing strategies.",
-    "As the Lead Market Analyst at a premier digital marketing firm, you specialize in dissecting online business landscapes."
+    "Conduct comprehensive analysis of products and competitors, providing in-depth insights to guide marketing strategies.",
+    "You are the Lead Market Analyst at a premier digital marketing firm, specializing in dissecting online business landscapes."
 )
 
 chief_marketing_strategist = create_agent(
     "Chief Marketing Strategist",
-    "Synthesize amazing insights from product analysis to formulate incredible marketing strategies.",
+    "Synthesize market insights to formulate innovative and effective marketing strategies.",
     "You are the Chief Marketing Strategist at a leading digital marketing agency, known for crafting bespoke strategies that drive success."
 )
 
 creative_content_creator = create_agent(
     "Creative Content Creator",
-    "Develop compelling and innovative content for social media campaigns, with a focus on creating high-impact ad copies.",
-    "As a Creative Content Creator at a top-tier digital marketing agency, you excel in crafting narratives that resonate with audiences."
+    "Develop compelling and innovative content for marketing campaigns, with a focus on creating high-impact ad copies.",
+    "As a Creative Content Creator at a top-tier digital marketing agency, you excel in crafting narratives that resonate with diverse audiences."
 )
 
-# Task configurations
+# Define tasks
 def create_task(description, agent):
     return Task(
         description=description.format(
@@ -87,34 +67,26 @@ def create_task(description, agent):
     )
 
 research_task = create_task(
-    "Conduct a thorough research about the customer and competitors in the context of {customer_domain}. "
-    "Make sure you find any interesting and relevant information given the current year is 2024. "
-    "We are working with them on the following project: {project_description}.",
+    "Conduct thorough research on {customer_domain} and its competitors. Analyze the market landscape, target audience, and current trends relevant to: {project_description}",
     lead_market_analyst
 )
 
-project_understanding_task = create_task(
-    "Understand the project details and the target audience for {project_description}. "
-    "Review any provided materials and gather additional information as needed.",
+strategy_task = create_task(
+    "Develop a comprehensive marketing strategy for {customer_domain} based on the research insights. The strategy should address: {project_description}",
     chief_marketing_strategist
 )
 
-marketing_strategy_task = create_task(
-    "Formulate a comprehensive marketing strategy for the project {project_description} of the customer {customer_domain}. "
-    "Use the insights from the research task and the project understanding task to create a high-quality strategy.",
-    chief_marketing_strategist
-)
-
-campaign_idea_task = create_task(
-    "Develop creative marketing campaign ideas for {project_description}. "
-    "Ensure the ideas are innovative, engaging, and aligned with the overall marketing strategy.",
+content_task = create_task(
+    "Create compelling marketing content and campaign ideas for {customer_domain} that align with the developed strategy. Focus on: {project_description}",
     creative_content_creator
 )
 
-copy_creation_task = create_task(
-    "Create marketing copies based on the approved campaign ideas for {project_description}. "
-    "Ensure the copies are compelling, clear, and tailored to the target audience.",
-    creative_content_creator
+# Create Crew
+crew = Crew(
+    agents=[lead_market_analyst, chief_marketing_strategist, creative_content_creator],
+    tasks=[research_task, strategy_task, content_task],
+    verbose=2,
+    process=Process.sequential
 )
 
 if st.button("Generate Marketing Strategy"):
@@ -124,13 +96,6 @@ if st.button("Generate Marketing Strategy"):
         st.error("Please fill in all the required fields.")
     else:
         try:
-            # Create crew
-            crew = Crew(
-                agents=[lead_market_analyst, chief_marketing_strategist, creative_content_creator],
-                tasks=[research_task, project_understanding_task, marketing_strategy_task, campaign_idea_task, copy_creation_task],
-                verbose=2
-            )
-
             with st.spinner("Generating marketing strategy... This may take a few minutes."):
                 result = crew.kickoff()
                 st.success("Marketing strategy generated successfully!")
