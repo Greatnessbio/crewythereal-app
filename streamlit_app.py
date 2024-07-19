@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from langchain.agents import Tool
-from langchain.utilities import SerpAPIWrapper
+from langchain.utilities import DuckDuckGoSearchAPIWrapper
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
@@ -12,24 +12,22 @@ st.set_page_config(page_title="AI Marketing Strategy Generator", page_icon="🚀
 # Streamlit UI
 st.title("🚀 AI Marketing Strategy Generator")
 
-# Sidebar for API keys
+# Sidebar for API key
 with st.sidebar:
     st.header("API Configuration")
     openai_api_key = st.text_input("OpenAI API Key", type="password")
-    serpapi_api_key = st.text_input("SerpAPI Key", type="password")
     
-    if openai_api_key and serpapi_api_key:
+    if openai_api_key:
         os.environ["OPENAI_API_KEY"] = openai_api_key
-        os.environ["SERPAPI_API_KEY"] = serpapi_api_key
     else:
-        st.warning("Please enter your API keys to proceed.")
+        st.warning("Please enter your OpenAI API key to proceed.")
 
 # Main content
 customer_domain = st.text_input("Customer Domain", placeholder="e.g., crewai.com")
 project_description = st.text_area("Project Description", placeholder="Describe your marketing project...")
 
 # Initialize tools
-search = SerpAPIWrapper()
+search = DuckDuckGoSearchAPIWrapper()
 search_tool = Tool(
     name="Search",
     func=search.run,
@@ -115,8 +113,8 @@ crew = Crew(
 )
 
 if st.button("Generate Marketing Strategy"):
-    if not openai_api_key or not serpapi_api_key:
-        st.error("Please enter your API keys in the sidebar.")
+    if not openai_api_key:
+        st.error("Please enter your OpenAI API key in the sidebar.")
     elif not customer_domain or not project_description:
         st.error("Please fill in all the required fields.")
     else:
